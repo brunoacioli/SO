@@ -45,6 +45,8 @@ namespace ull
         }
         //head = NULL;
 
+        // tirar dúvidas com o professor segunda
+
 
     }
 
@@ -65,6 +67,7 @@ namespace ull
             cur = head;
             while(cur != NULL) {
                 printf("N Mec: %d \n", cur->reg.nmec);
+                cur = cur->next;
             }
         }
     }
