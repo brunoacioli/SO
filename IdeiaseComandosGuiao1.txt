@@ -1,0 +1,6 @@
+build-essential
+
+node * cur = head;
+while(cur != NULL)
+	print(cur.values)
+	cur  = cur->next
