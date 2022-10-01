@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdint.h>
+#include <iostream>
 
 #include "ull.h"
 
@@ -35,6 +36,16 @@ namespace ull
 
     void reset()
     {
+        Node *temp;
+
+        while(head != NULL) {
+            temp = head;
+            head = head->next;
+            free(temp);
+        }
+        //head = NULL;
+
+
     }
 
     /* ************************************************* */
@@ -47,6 +58,15 @@ namespace ull
 
     void print()
     {
+        Node *cur;
+        if(head == NULL) {
+            printf("List is empty \n");
+        } else {
+            cur = head;
+            while(cur != NULL) {
+                printf("N Mec: %d \n", cur->reg.nmec);
+            }
+        }
     }
 
     /* ************************************************* */
@@ -72,6 +92,10 @@ namespace ull
                 n->next = head;
                 head = n;
             }
+            else {
+                n->next = cur;
+                prev->next = n; 
+            }
          }
 
     }
@@ -80,6 +104,20 @@ namespace ull
 
     const char *query(uint32_t nmec)
     {
+        Node *cur;
+        
+        if(head->reg.nmec == nmec) {
+            return head->reg.name;
+        } else {
+            cur = head;
+            while (cur != NULL && cur->reg.nmec != nmec){
+                cur = cur->next;
+            }
+            if(cur->reg.nmec == nmec) {
+                return cur->reg.name;
+            }
+        }
+
         return NULL;
     }
 
@@ -87,6 +125,26 @@ namespace ull
 
     void remove(uint32_t nmec)
     {
+        Node *cur;
+        Node *prev;
+
+        cur = head;
+
+        if(head->reg.nmec == nmec) {
+            head = head->next;
+            free(cur);
+        } else {
+            while(cur != NULL && cur->reg.nmec != nmec) {
+                prev = cur;
+                cur = cur->next;
+            }
+            if(cur->reg.nmec == nmec) {
+                prev->next = cur->next;
+                free(cur);
+            } else {
+                printf("Student does not belong to the list\n");
+            }
+        }
     }
 
     /* ************************************************* */
