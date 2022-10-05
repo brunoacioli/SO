@@ -57,22 +57,75 @@ namespace ull
 
     void load(const char *fname)
     {
+        FILE* ptr;
+        char* token;
+        char str[129];
+        char name[129];
+        char* strPtr = str;
+        char* namePtr = name;
+        char* etpr;
+        
+        int i;
+        int total = 0;
+        uint32_t nmec;
+        ptr = fopen(fname,"r");
+        
+
+        /*fgets(strPtr, 129, ptr);
+        token = strtok(strPtr, ";");
+        while(token != NULL){
+            printf("%s\n", token);
+            token = strtok(NULL, ";");
+        }*/
+        
+        
+
+        if(ptr == NULL) {
+            printf("file can't be opened");
+            exit(1);
+        }
+
+        while(!feof(ptr)) {
+            total++;
+            i = 0;
+            fgets(strPtr,129,ptr);
+            //printf("%s\n", strPtr);
+            token = strtok(strPtr, ";");
+            while(token != NULL) {
+                //printf("%s\n", token);
+                if(i%2 == 0) {
+                    namePtr = token;
+                } else {
+                    //printf("N MEC: %s\n", token);
+                    nmec = strtoul(token, &etpr, 10);
+                    //printf("N MEC 2: %u\n", nmec);
+                }
+                token = strtok (NULL, ";");
+                i++;
+            }
+            insert(nmec, namePtr);
+        }
+        printf("Total: %u", total);
+        fclose(ptr);
     }
 
     /* ************************************************* */
 
     void print()
     {
+        int total = 0;
         Node *cur;
         if(head == NULL) {
             printf("List is empty \n");
         } else {
             cur = head;
             while(cur != NULL) {
-                printf("N Mec: %d \n", cur->reg.nmec);
+                total++;
+                printf("N Mec - %d  %s \n", cur->reg.nmec, cur->reg.name);
                 cur = cur->next;
             }
         }
+        printf("Total: %i", total);
     }
 
     /* ************************************************* */
@@ -111,11 +164,11 @@ namespace ull
     const char *query(uint32_t nmec)
     {
         Node *cur;
+        cur = head;
         
         if(head->reg.nmec == nmec) {
             return head->reg.name;
         } else {
-            cur = head;
             while (cur != NULL && cur->reg.nmec != nmec){
                 cur = cur->next;
             }
@@ -151,8 +204,6 @@ namespace ull
                 prev->next = cur->next;
                 free((void*)cur->reg.name);
                 free(cur);
-            } else {
-                printf("Student does not belong to the list\n");
             }
         }
     }

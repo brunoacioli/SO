@@ -65,6 +65,7 @@ void menuChoiceQuit()
 
 void menuChoiceReset()
 {
+    ull::reset();
 }
 
 /* ******************************************** */
@@ -85,12 +86,23 @@ void menuChoiceInsert()
 
 void menuChoiceQuery()
 {
+    //char name[129];
+    //char* ptr = name;
+    uint32_t nmec;
+    printf("Type the N MEC: \n");
+    scanf("%u", &nmec);
+    printf("Name: %s", ull::query(nmec));
+
 }
 
 /* ******************************************** */
 
 void menuChoiceRemove()
 {
+    uint32_t nmec;
+    printf("Type the N MEC: \n");
+    scanf("%u", &nmec);
+    ull::remove(nmec);
 }
 
 /* ******************************************** */
@@ -104,6 +116,7 @@ void menuChoicePrint()
 
 void menuChoiceLoad()
 {
+    ull::load("list.txt");
 }
 
 /* ******************************************** */
