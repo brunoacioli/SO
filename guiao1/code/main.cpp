@@ -116,7 +116,10 @@ void menuChoicePrint()
 
 void menuChoiceLoad()
 {
-    ull::load("list.txt");
+    char name[129];
+    printf("Type the name and n mec: \n");
+    std::cin.getline(name, 129);
+    ull::load(name);
 }
 
 /* ******************************************** */
