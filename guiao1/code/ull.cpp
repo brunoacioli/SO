@@ -98,7 +98,6 @@ namespace ull
                 } else {
                     //printf("N MEC: %s\n", token);
                     nmec = strtoul(token, &etpr, 10);
-                    //printf("N MEC 2: %u\n", nmec);
                 }
                 token = strtok (NULL, ";");
                 i++;
