@@ -15,15 +15,25 @@ int main(void)
   pid_t ret = pfork();
   if (ret == 0)
   {
-    execl("./child", "./child", NULL);
+    pid_t res = execl("./child", "./child", NULL);
+    
+    //adicionei isto para apanhar o erro
+    if(res == -1)
+    {
+    	perror("Error launching child process");
+    	exit(1);
+    }
+    
     printf("why doesn't this message show up?\n");
     return EXIT_FAILURE;
   }
+  
   else
   {
     printf("I'm the parent: PID = %d, PPID = %d\n", getpid(), getppid());
     usleep(20000);
-    // pwait(NULL);
+    //esperar pelo filho
+    pwait(NULL);
   }
 
   return EXIT_SUCCESS;

@@ -10,7 +10,9 @@
 static void Interrupt (int signum)
 {
     if (signum == SIGINT) {
-        printf("\nStay calm, I haven't reached %u yet!\n", NTIMES);
+        printf("\nStay calm, I haven't reached %u yet! SIGINT\n", NTIMES);
+    } else if(signum == SIGTERM) {
+        printf("\nStay calm, I haven't reached %u yet! SIGTERM\n", NTIMES);
     }
     else { 
         printf ("A signal different from SIGINT was received\n");
@@ -28,6 +30,10 @@ int main(void)
     if (sigaction (SIGINT, &sigact, NULL) < 0)
     { 
         perror ("Rotina de atendimento não instalada\n");
+        return EXIT_FAILURE;
+    }
+    if(sigaction(SIGTERM, &sigact, NULL) < 0) {
+        perror("Rotina de atendimento nao instalada 2 \n");
         return EXIT_FAILURE;
     }
 
