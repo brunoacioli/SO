@@ -76,7 +76,7 @@ void menuChoiceInsert()
     uint32_t nmec;
     printf("Type the name and n mec: \n");
     std::cin.getline(name, 129);
-    scanf("%u",&nmec);
+    scanf("%u%*c",&nmec);
     //printf("%s %u\n", name, nmec);
     ull::insert(nmec, name);
     
@@ -117,7 +117,7 @@ void menuChoicePrint()
 void menuChoiceLoad()
 {
     char name[129];
-    printf("Type the name and n mec: \n");
+    printf("Type file name:\n");
     std::cin.getline(name, 129);
     ull::load(name);
     
