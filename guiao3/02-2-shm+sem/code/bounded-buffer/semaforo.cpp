@@ -34,7 +34,10 @@ int main(void) {
     psem_up(semid,ACCESS);
 
     //Criaçao do counter
+    /* create the shared memory */
     counterId = pshmget(IPC_PRIVATE, sizeof(int), 0600 | IPC_CREAT | IPC_EXCL);
+    
+    /*  attach shared memory to process addressing space */
     pcounter = (int*)pshmat(counterId, NULL, 0);
     *pcounter = 0;
 
