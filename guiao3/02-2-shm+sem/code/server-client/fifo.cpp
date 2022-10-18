@@ -7,6 +7,8 @@
 #include <sys/sem.h>
 #include <stdint.h>
 #include <string.h>
+#include <cstring>
+#include <iostream>
 
 #include "fifo.h"
 #include "delays.h"
@@ -15,10 +17,13 @@
 namespace fifo
 {
     #define FIFOSZ  5
+    #define MAX     129
 
-    struct BUFFER {
+    struct ITEM
+    {
+        int semid;
         uint32_t id;
-        char* text;
+        char text[MAX];
         int len;
         int num_letters;
         int num_digits;
@@ -30,24 +35,19 @@ namespace fifo
         uint32_t ii;
         uint32_t ri;
         uint32_t cnt;
-        BUFFER slot[FIFOSZ];
+        uint32_t slot[FIFOSZ];
     };
 
-    int fifoFreeId = -1;
-    int fifoPendingId = -1;
-    int bufferId = -1;
-    int semBufferId = -1;
+    struct SharedAll
+    {
+        FIFO fifos[2];
+        ITEM pool[FIFOSZ];
+    };
+
+    int sharedDataId = -1;
     
 
-    FIFO *fifoFree = NULL;
-    FIFO *fifoPending = NULL;
-
-    BUFFER *buffer = NULL;
-
-
-    uint32_t iiBuffer;
-    uint32_t riBuffer;
-    uint32_t cntBuffer;
+    SharedAll* sharedData = NULL;
 
 
     /* index of access, full and empty semaphores */
@@ -73,72 +73,39 @@ namespace fifo
     }
 
     void create(void) {
-
         // Creation of FIFO of free buffers
 
         /* create the shared memory */
-        fifoFreeId = pshmget(IPC_PRIVATE, sizeof(FIFO), 0600 | IPC_CREAT | IPC_EXCL);
+        sharedDataId = pshmget(IPC_PRIVATE, sizeof(SharedAll), 0600 | IPC_CREAT | IPC_EXCL);
         
         /*  attach shared memory to process addressing space */
-        fifoFree = (FIFO*)pshmat(fifoFreeId, NULL, 0);
-
-        // Creation of FIFO of Pending requests
-
-        /* create the shared memory */
-        fifoPendingId = pshmget(IPC_PRIVATE, sizeof(FIFO), 0600 | IPC_CREAT | IPC_EXCL);
-
-        /*  attach shared memory to process addressing space */
-        fifoPending = (FIFO*)pshmat(fifoPendingId, NULL, 0);
-
-
-        // Creation of BUFFER
-
-        /* create the shared memory */
-        bufferId = pshmget(IPC_PRIVATE, FIFOSZ * sizeof(BUFFER), 0600 | IPC_CREAT | IPC_EXCL);
-
-        /*  attach shared memory to process addressing space */
-        buffer = (BUFFER*)pshmat(bufferId, NULL, 0);
+        sharedData = (SharedAll*)pshmat(sharedDataId, NULL, 0);
 
         for(int i = 0; i < FIFOSZ; i++) {
+            sharedData->fifos[0].slot[i] = i;
+            sharedData->fifos[1].slot[i] = 99;
 
-            fifoFree->slot[i].id = 99999;
-            fifoFree->slot[i].text = "Init";
-            fifoFree->slot[i].len = 0;
-            fifoFree->slot[i].num_digits = 0;
-            fifoFree->slot[i].num_letters = 0;
-
-            fifoPending->slot[i].id = 99999;
-            fifoPending->slot[i].text = "Init";
-            fifoPending->slot[i].len = 0;
-            fifoPending->slot[i].num_digits = 0;
-            fifoPending->slot[i].num_letters = 0;
-
-            buffer[i].id = 99999;
-            buffer[i].text = "Init";
-            buffer[i].len = 0;
-            buffer[i].num_digits = 0;
-            buffer[i].num_letters = 0;
-
+            sharedData->pool[i].id = i;
+            strcpy(sharedData->pool[i].text, "Init");
+            sharedData->pool[i].len = 0;
+            sharedData->pool[i].num_digits = 0;
+            sharedData->pool[i].num_letters = 0;
         }
 
         // Create access, full, empty and waiting response semaphores
 
-        fifoFree->semid = psemget(IPC_PRIVATE, 3, 0600 | IPC_CREAT | IPC_EXCL);
-        fifoPending->semid = psemget(IPC_PRIVATE, 3, 0600 | IPC_CREAT | IPC_EXCL);
-        semBufferId = psemget(IPC_PRIVATE, 3, 0600 | IPC_CREAT | IPC_CREAT | IPC_EXCL);
-
-        for (int i = 0; i < FIFOSZ; i++) {
-            up(fifoFree->semid, NSLOTS);
-            up(fifoPending->semid, NSLOTS);
-            up(semBufferId, NSLOTS);
+        for(int i = 0; i < FIFOSZ; i++) {
+            sharedData->pool[i].semid = psemget(IPC_PRIVATE, 1, 0600 | IPC_CREAT | IPC_EXCL);
+            up(sharedData->pool[i].semid, ACCESS);
         }
 
-        up(fifoFree->semid, ACCESS);
-        up(fifoPending->semid, ACCESS);
-        up(semBufferId, ACCESS);
-
-        //up(fifoFree->semid, RESPONSE);
-        //up(fifoPending->semid, RESPONSE);
+        for(int i = 0; i < 2; i++) {
+            sharedData->fifos[i].semid = psemget(IPC_PRIVATE, 1, 0600 | IPC_CREAT | IPC_EXCL);
+            for(int j = 0; j < FIFOSZ; j++) {
+                up(sharedData->fifos[i].semid, NSLOTS);
+            }
+            up(sharedData->fifos[i].semid, ACCESS);
+        }
 
 
     }
@@ -146,12 +113,10 @@ namespace fifo
     void destroy() {
 
         /* detach shared memory from process addressing space */
-        pshmdt(fifoFree);
-        pshmdt(fifoPending);
+        pshmdt(sharedData);
 
         /* destroy the shared memory */
-        pshmctl(fifoFreeId, IPC_RMID, NULL);
-        pshmctl(fifoPendingId, IPC_RMID, NULL);
+        pshmctl(sharedDataId, IPC_RMID, NULL);
     }
 
     void putRequestData(uint32_t id, char* data) {
