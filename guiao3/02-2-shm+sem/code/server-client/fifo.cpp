@@ -120,35 +120,12 @@ namespace fifo
     }
 
     void putRequestData(uint32_t id, char* data) {
-        down(semBufferId, NSLOTS);
-        down(semBufferId, ACCESS);
-
-        buffer[iiBuffer].id = id;
-        buffer[iiBuffer].text = strdup(data);
- 
-        iiBuffer = (iiBuffer + 1) % 5;
-        cntBuffer++;
-
-        up(semBufferId, ACCESS);
-        up(semBufferId, NSLOTS);
-
-        //terminar depois
+    
     }
 
     uint32_t getFreeBuffer() {
 
-        down(fifoFree->semid, NITEMS);
-        down(fifoFree->semid, ACCESS);
-
-        uint32_t id = fifoFree->slot[fifoFree->ri].id;
-        fifoFree->ri = (fifoFree->ri + 1) % FIFOSZ;
-        fifoFree->cnt--;
-
-
-        up(fifoFree->semid, ACCESS);
-        up(fifoFree->semid, NSLOTS);
-
-        return id;
+        return 1;
     }
 
 }
