@@ -2,7 +2,7 @@ CXXFLAGS = -Wall -ggdb -pthread
 
 LDFLAGS = -pthread -lm
 
-TARGETS = bounded_buffer_unsafe bounded_buffer_safe count_1_thread
+TARGETS = bounded_buffer_unsafe bounded_buffer_safe count_1_thread count_many_threads
 
 all:	$(TARGETS)
 
@@ -13,6 +13,9 @@ bounded_buffer_safe:	fifo_safe.o bounded_buffer.o delays.o thread.o utils.o
 		g++ -o $@ $^ $(LDFLAGS)
 
 count_1_thread:	count_1_thread.o delays.o thread.o utils.o
+		g++ -o $@ $^ $(LDFLAGS)
+
+count_many_threads:	count_many_threads.o delays.o thread.o utils.o
 		g++ -o $@ $^ $(LDFLAGS)
 
 
