@@ -22,19 +22,10 @@ void *thread_main(void * arg) {
 
 int main(void) {
     pthread_t my_thread;
-    int st;
 
-    st = pthread_create(&my_thread, NULL, &thread_main, NULL);
-    if(st) {
-        perror(strerror(st));
-        exit(1);
-    }
-    //usleep(2000000);
-    st = pthread_join(my_thread, NULL);
-    if(st) {
-        perror(strerror(st));
-        exit(1);
-    }
+    thread_create(&my_thread, NULL, &thread_main, NULL);
+    
+    thread_join(my_thread, NULL);
 
     return 0;
 }

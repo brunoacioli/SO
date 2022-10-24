@@ -16,13 +16,16 @@ static pthread_mutex_t accessCR = PTHREAD_MUTEX_INITIALIZER;
 int old = 0;
 
 void *thread_main(void * arg) {
-    mutex_lock(&accessCR);
+    
     for(int i = 1; i <= 10; i++) {
+        mutex_lock(&accessCR);
         old +=1;
-        usleep(50000);
-    }   
-    printf("%3d\n", old);
-    mutex_unlock(&accessCR);
+        mutex_unlock(&accessCR);
+        usleep(2000);
+        
+    }
+    printf("%3d\n", old);   
+    
 
     return NULL;
 
@@ -31,28 +34,12 @@ void *thread_main(void * arg) {
 int main(void) {
     pthread_t my_thread[SIZE];
 
-    int st;
-
-    
+    //mutex_init(&accessCR, NULL);
     for(int i = 0; i < SIZE; i++) {
-        st = pthread_create(&my_thread[i], NULL, &thread_main, NULL);
-        if(st) {
-            perror(strerror(st));
-            exit(1);
-        }
-
-        st = pthread_join(my_thread[i], NULL);
-        if(st) {
-            perror(strerror(st));
-            exit(1);
-        }
+        thread_create(&my_thread[i], NULL, &thread_main, NULL);
+        
+        thread_join(my_thread[i], NULL);
     }
-    
-    
-    mutex_init(&accessCR, NULL);
-    
-     
-    
 
     return 0;
 }
