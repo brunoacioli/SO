@@ -140,6 +140,8 @@ void patient_goto_urgency(int id)
 /* changes may be required to this function */
 void patient_wait_end_of_consultation(int id)
 {
+   while(hd->all_patients[id].done == 0);
+   printf("patient id %d done\n", id);
    check_valid_name(hd->all_patients[id].name);
    printf("\e[30;01mPatient %s (number %u): health problems treated\e[0m\n", hd->all_patients[id].name, id);
 }
