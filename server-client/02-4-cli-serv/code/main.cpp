@@ -35,9 +35,9 @@
 #define TRUE 1
 #define FALSE 0
 
-static pthread_mutex_t accessCR[2] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
+/*static pthread_mutex_t accessCR[2] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
 static pthread_cond_t fifoNotFull = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t fifoNotEmpty = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t fifoNotEmpty = PTHREAD_COND_INITIALIZER;*/
 
 
 #define USAGE "Synopsis: %s [options]\n"\

@@ -32,6 +32,7 @@ namespace sos
 {
 /** \brief Number of transaction buffers */
 
+        #define NBUFFERS 5
 
         /** \brief indexes for the fifos of free buffers and pending requests */
         enum
@@ -54,6 +55,7 @@ namespace sos
                 uint32_t ri;               ///< point of retrieval
                 uint32_t cnt;              ///< number of items stored
                 uint32_t tokens[NBUFFERS]; ///< storage memory
+                pthread_mutex_t accessCR;
         };
 
         /** \brief the data type representing all the shared area.
@@ -67,6 +69,8 @@ namespace sos
 
                 /* A fifo for tokens of free buffers and another for tokens with pending requests */
                 FIFO fifo[2];
+                pthread_cond_t notFull;
+                pthread_cond_t notEmpty;
 
                 /*
                  * TODO point
@@ -99,10 +103,10 @@ namespace sos
                  * Allocate the shared memory
                  */
 
-                /* init fifo 0 (free buffers) */
+                memset(sharedArea, 0, sizeof(sharedArea));
 
-                
-                
+                /* init fifo 0 (free buffers) */
+                        
 
                 FIFO *fifo = &sharedArea->fifo[FREE_BUFFER];
                 for (uint32_t i = 0; i < NBUFFERS; i++)
@@ -125,6 +129,11 @@ namespace sos
                  * TODO point
                  * Init synchronization elements
                  */
+                mutex_init(&sharedArea->fifo[0].accessCR, NULL);
+                mutex_init(&sharedArea->fifo[1].accessCR, NULL);
+                cond_init(&sharedArea->notEmpty, NULL);
+                cond_init(&sharedArea->notFull, NULL);
+
         }
 
         /* -------------------------------------------------------------------- */
@@ -157,10 +166,23 @@ namespace sos
 #if __DEBUG__
                 fprintf(stderr, "%s(idx: %u, token: %u)\n", __FUNCTION__, idx, token);
 #endif
+                mutex_lock(&sharedArea->fifo[idx].accessCR);
 
                 require(idx == FREE_BUFFER or idx == PENDING_REQUEST, "idx is not valid");
                 require(token < NBUFFERS, "token is not valid");
 
+                while (sharedArea->fifo[idx].cnt == NBUFFERS) {
+                        cond_wait(&sharedArea->notFull, &sharedArea->fifo[idx].accessCR);
+                }
+
+                sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ii] = token;
+                sharedArea->fifo[idx].ii = (sharedArea->fifo[idx].ii + 1) % NBUFFERS;
+                sharedArea->fifo[idx].cnt++;
+
+                cond_broadcast(&sharedArea->notEmpty);
+                mutex_unlock(&sharedArea->fifo[idx].accessCR);
+
+                
                 /*
                  * TODO point
                  * Replace with your code,
@@ -177,9 +199,25 @@ namespace sos
 #if __DEBUG__
                 fprintf(stderr, "%s(idx: %u)\n", __FUNCTION__, idx);
 #endif
+                mutex_lock(&sharedArea->fifo[idx].accessCR);
 
                 require(idx == FREE_BUFFER or idx == PENDING_REQUEST, "idx is not valid");
 
+                while (sharedArea->fifo[idx].cnt == 0) {}
+                {
+                        cond_wait(&sharedArea->notEmpty, &sharedArea->fifo[idx].accessCR);
+                }
+
+                uint32_t token = sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ri];
+                sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ri] = NBUFFERS;
+                sharedArea->fifo[idx].ri = (sharedArea->fifo[idx].ri + 1) % NBUFFERS;
+                sharedArea->fifo[idx].cnt--;
+
+                cond_broadcast(&sharedArea->notFull);
+                mutex_unlock(&sharedArea->fifo[idx].accessCR);
+
+                return token;
+                
                 /*
                  * TODO point
                  * Replace with your code,
@@ -195,7 +233,7 @@ namespace sos
 #if __DEBUG__
                 fprintf(stderr, "%s()\n", __FUNCTION__);
 #endif
-
+                return fifoOut(FREE_BUFFER);
                 /*
                  * TODO point
                  * Replace with your code,
