@@ -46,7 +46,7 @@ void insert_pfifo(PriorityFIFO* pfifo, uint32_t id, uint32_t priority)
    mutex_lock(&pfifo->accessCR);
 
    require (pfifo != NULL, "NULL pointer to FIFO");   // a false value indicates a program error
-   require (id <= MAX_ID, "invalid id");              // a false value indicates a program error
+   require (id <= MAX_ID  or id == MAX_PATIENTS, "invalid id");              // a false value indicates a program error
    require (priority > 0 && priority <= MAX_PRIORITY, "invalid priority value");  // a false value indicates a program error
    
    while(full_pfifo(pfifo)) {

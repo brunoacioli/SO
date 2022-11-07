@@ -41,6 +41,8 @@ typedef struct
 {
    char name[MAX_NAME+1];
    int done; // 0: waiting for consultation; 1: consultation finished
+   pthread_cond_t cond_done;
+   pthread_mutex_t accessPatients;
 } Patient;
 
 typedef struct
@@ -73,6 +75,11 @@ void init_simulation(uint32_t np)
    hd->num_patients = np;
    init_pfifo(&hd->triage_queue);
    init_pfifo(&hd->doctor_queue);
+
+   for(int i = 0; i < MAX_PATIENTS; i++) {
+      mutex_init(&hd->all_patients[i].accessPatients, NULL);
+      cond_init(&hd->all_patients[i].cond_done, NULL);
+   }
 }
 
 /* ************************************************* */
@@ -81,6 +88,9 @@ void nurse_iteration()
 {
    printf("\e[34;01mNurse: get next patient\e[0m\n");
    uint32_t patient = retrieve_pfifo(&hd->triage_queue);
+   if(patient == MAX_PATIENTS) {
+      thread_exit(NULL);
+   }
    check_valid_patient(patient);
    printf("\e[34;01mNurse: evaluate patient %u priority\e[0m\n", patient);
    uint32_t priority = random_manchester_triage_priority();
@@ -108,11 +118,17 @@ void doctor_iteration()
 {
    printf("\e[32;01mDoctor: get next patient\e[0m\n");
    uint32_t patient = retrieve_pfifo(&hd->doctor_queue);
+   if(patient == MAX_PATIENTS) {
+      thread_exit(NULL);
+   }
    check_valid_patient(patient);
    printf("\e[32;01mDoctor: treat patient %u\e[0m\n", patient);
    random_wait();
    printf("\e[32;01mDoctor: patient %u treated\e[0m\n", patient);
+   mutex_lock(&hd->all_patients[patient].accessPatients);
    hd->all_patients[patient].done = 1;
+   cond_broadcast(&hd->all_patients[patient].cond_done);
+   mutex_unlock(&hd->all_patients[patient].accessPatients);
 }
 
 void *thread_doctor(void *arg) {
@@ -140,7 +156,11 @@ void patient_goto_urgency(int id)
 /* changes may be required to this function */
 void patient_wait_end_of_consultation(int id)
 {
-   while(hd->all_patients[id].done == 0);
+   mutex_lock(&hd->all_patients[id].accessPatients);
+   while(hd->all_patients[id].done == 0) {
+      cond_wait(&hd->all_patients[id].cond_done, &hd->all_patients[id].accessPatients);
+   }
+   mutex_unlock(&hd->all_patients[id].accessPatients);
    printf("patient id %d done\n", id);
    check_valid_name(hd->all_patients[id].name);
    printf("\e[30;01mPatient %s (number %u): health problems treated\e[0m\n", hd->all_patients[id].name, id);
@@ -249,13 +269,13 @@ int main(int argc, char *argv[])
         thread_join(patient_thread[i],NULL);
     }
 
-   /*for(uint32_t i = 0; i < ndoctors; i++) {
-      thread_join(doctor_thread[i], NULL);
+   for(uint32_t i = 0; i < ndoctors; i++) {
+      insert_pfifo(&hd->doctor_queue, MAX_PATIENTS, 1);
    }
 
    for(uint32_t i = 0; i < nnurses; i++) {
-      thread_join(nurse_thread[i], NULL);
-   }*/
+      insert_pfifo(&hd->triage_queue, MAX_PATIENTS, 1);
+   }
 
 
    /* dummy code to show a very simple sequential behavior

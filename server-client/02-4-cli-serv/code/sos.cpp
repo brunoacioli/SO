@@ -239,7 +239,6 @@ namespace sos
                  * Replace with your code,
                  */
         }
-
         /* -------------------------------------------------------------------- */
 
         void putRequestData(uint32_t token, const char *data)
