@@ -35,9 +35,8 @@
 #define TRUE 1
 #define FALSE 0
 
-/*static pthread_mutex_t accessCR[2] = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER};
-static pthread_cond_t fifoNotFull = PTHREAD_COND_INITIALIZER;
-static pthread_cond_t fifoNotEmpty = PTHREAD_COND_INITIALIZER;*/
+//static pthread_mutex_t accessServer = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_cond_t condServer = PTHREAD_COND_INITIALIZER;
 
 
 #define USAGE "Synopsis: %s [options]\n"\
@@ -65,11 +64,16 @@ void processRequest(uint32_t id)
 #ifdef __DEBUG__
 fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
 #endif
-
+    //mutex_lock(&accessServer);
     char req[MAX_STRING_LEN+1];
     req[MAX_STRING_LEN] = '\0';
     uint32_t token = sos::getPendingRequest();
     sos::getRequestData(token, req);
+    /*printf("REQ: %s\n", req);
+    if(req[0] == '\0') {
+        printf("Server %i finished\n",id);
+        thread_exit(NULL);
+    }*/
     sos::Response resp;
     for (uint32_t i = 0; req[i] != '\0'; i++)
     {
@@ -79,6 +83,7 @@ fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
     }
     sos::putResponseData(token, &resp);
     sos::notifyClient(token);
+    //mutex_unlock(&accessServer);    
 }
 
 /* ******************************************************* */
@@ -110,6 +115,7 @@ fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
 void *thread_server(void *arg) {
 
     uint32_t id = *(uint32_t*)arg;
+    printf("Server %d started\n", id);
     server(id);
 
     return NULL;
@@ -148,7 +154,6 @@ void callService(uint32_t id, const char *req, sos::Response *resp)
 #ifdef __DEBUG__
 fprintf(stderr, "%s(id: %u, req: \"%s\", ...)\n", __FUNCTION__, id, req);
 #endif
-
     uint32_t token = sos::getFreeBuffer();
     sos::putRequestData(token, req);
     sos::submitRequest(token);
@@ -173,7 +178,6 @@ void client(uint32_t id, uint32_t niter)
 #ifdef __DEBUG__
 fprintf(stderr, "%s(id: %u, niter: %u, ...)\n", __FUNCTION__, id, niter);
 #endif
-
     for (uint32_t i = 0; i < niter; i++)
     {
         /* generate a string */
@@ -191,6 +195,7 @@ fprintf(stderr, "%s(id: %u, niter: %u, ...)\n", __FUNCTION__, id, niter);
 
 void *thread_client(void *arg) {
     ARGV clientData = *(ARGV*)arg;
+    printf("Client %d started\n", clientData.id);
     client(clientData.id, clientData.niter);
     return NULL;
 }
@@ -259,31 +264,27 @@ int main(int argc, char *argv[])
     uint32_t serverIDs[nservers];
     ARGV clientsArgs[nclients];
 
-    for (uint32_t i = 0; i < nclients; i++ ){
-        clientsArgs.id = i;
-        clientsArgs.niter = nclients;
-    }
-
-    for(uint32_t i = 0; i <nservers; i++) {
-        server_thread[i] = i;
-    }
 
 
     for(uint32_t i = 0; i < nservers; i++) {
+        serverIDs[i] = i;
         thread_create(&server_thread[i], NULL, &thread_server, &serverIDs[i]);
     }
 
     for(uint32_t i = 0; i < nclients; i++) {
+        clientsArgs[i].id = i;
+        clientsArgs[i].niter = niter;
         thread_create(&client_thread[i], NULL, &thread_client, &clientsArgs[i]); 
     }
 
     for(uint32_t i = 0; i < nclients; i++) {
         thread_join(client_thread[i],NULL);
+        printf("Client %d finished\n", i);
     }
 
-    for(uint32_t i = 0; i < nservers; i++) {
+    /*for(uint32_t i = 0; i < nservers; i++) {
         thread_join(server_thread[i], NULL);
-    }
+    }*/
 
     /* waiting for client to conclude */
 
@@ -301,6 +302,12 @@ int main(int argc, char *argv[])
      * So, they must be informed to finish their job.
      * This can be done sending to every one of them an empty request string.
      */
+
+    /*for(uint32_t i = 0; i < nclients; i++) {
+        uint32_t token = sos::getFreeBuffer();
+        sos::putRequestData(token, "\0");
+        sos::submitRequest(token);
+    }*/
 
     /* quitting */
     return EXIT_SUCCESS;

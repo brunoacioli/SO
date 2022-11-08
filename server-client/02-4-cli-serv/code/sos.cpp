@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <stdint.h>
+#include <string.h>
 
 #include <new>
 
@@ -46,6 +47,7 @@ namespace sos
         {
                 char req[MAX_STRING_LEN + 1];
                 Response resp;
+                pthread_mutex_t accessBuffer;
         };
 
         /** \brief the fifo data type to store indexes of buffers */
@@ -56,6 +58,8 @@ namespace sos
                 uint32_t cnt;              ///< number of items stored
                 uint32_t tokens[NBUFFERS]; ///< storage memory
                 pthread_mutex_t accessCR;
+                pthread_cond_t notFull;
+                pthread_cond_t notEmpty;
         };
 
         /** \brief the data type representing all the shared area.
@@ -69,8 +73,7 @@ namespace sos
 
                 /* A fifo for tokens of free buffers and another for tokens with pending requests */
                 FIFO fifo[2];
-                pthread_cond_t notFull;
-                pthread_cond_t notEmpty;
+                
 
                 /*
                  * TODO point
@@ -103,8 +106,8 @@ namespace sos
                  * Allocate the shared memory
                  */
 
-                memset(sharedArea, 0, sizeof(sharedArea));
-
+                //sharedArea = (SharedArea*)malloc(sizeof(SharedArea));
+                sharedArea = new SharedArea;
                 /* init fifo 0 (free buffers) */
                         
 
@@ -129,10 +132,17 @@ namespace sos
                  * TODO point
                  * Init synchronization elements
                  */
-                mutex_init(&sharedArea->fifo[0].accessCR, NULL);
-                mutex_init(&sharedArea->fifo[1].accessCR, NULL);
-                cond_init(&sharedArea->notEmpty, NULL);
-                cond_init(&sharedArea->notFull, NULL);
+
+                mutex_init(&sharedArea->fifo[FREE_BUFFER].accessCR, NULL);
+                mutex_init(&sharedArea->fifo[PENDING_REQUEST].accessCR, NULL);
+                cond_init(&sharedArea->fifo[FREE_BUFFER].notEmpty, NULL);
+                cond_init(&sharedArea->fifo[PENDING_REQUEST].notEmpty, NULL);
+                cond_init(&sharedArea->fifo[FREE_BUFFER].notFull, NULL);
+                cond_init(&sharedArea->fifo[PENDING_REQUEST].notFull, NULL);
+
+                for(int i = 0; i < NBUFFERS; i++) {
+                        mutex_init(&sharedArea->pool[i].accessBuffer, NULL);
+                }
 
         }
 
@@ -148,6 +158,7 @@ namespace sos
                  * Destroy synchronization elements
                  */
 
+                free(sharedArea);
                 /*
                  * TODO point
                  *  Destroy the shared memory
@@ -172,14 +183,14 @@ namespace sos
                 require(token < NBUFFERS, "token is not valid");
 
                 while (sharedArea->fifo[idx].cnt == NBUFFERS) {
-                        cond_wait(&sharedArea->notFull, &sharedArea->fifo[idx].accessCR);
+                        cond_wait(&sharedArea->fifo[idx].notFull, &sharedArea->fifo[idx].accessCR);
                 }
 
                 sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ii] = token;
                 sharedArea->fifo[idx].ii = (sharedArea->fifo[idx].ii + 1) % NBUFFERS;
                 sharedArea->fifo[idx].cnt++;
 
-                cond_broadcast(&sharedArea->notEmpty);
+                cond_broadcast(&sharedArea->fifo[idx].notEmpty);
                 mutex_unlock(&sharedArea->fifo[idx].accessCR);
 
                 
@@ -202,10 +213,10 @@ namespace sos
                 mutex_lock(&sharedArea->fifo[idx].accessCR);
 
                 require(idx == FREE_BUFFER or idx == PENDING_REQUEST, "idx is not valid");
-
-                while (sharedArea->fifo[idx].cnt == 0) {}
+                
+                while (sharedArea->fifo[idx].cnt == 0)
                 {
-                        cond_wait(&sharedArea->notEmpty, &sharedArea->fifo[idx].accessCR);
+                        cond_wait(&sharedArea->fifo[idx].notEmpty, &sharedArea->fifo[idx].accessCR);
                 }
 
                 uint32_t token = sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ri];
@@ -213,7 +224,7 @@ namespace sos
                 sharedArea->fifo[idx].ri = (sharedArea->fifo[idx].ri + 1) % NBUFFERS;
                 sharedArea->fifo[idx].cnt--;
 
-                cond_broadcast(&sharedArea->notFull);
+                cond_broadcast(&sharedArea->fifo[idx].notFull);
                 mutex_unlock(&sharedArea->fifo[idx].accessCR);
 
                 return token;
@@ -232,7 +243,7 @@ namespace sos
         {
 #if __DEBUG__
                 fprintf(stderr, "%s()\n", __FUNCTION__);
-#endif
+#endif          
                 return fifoOut(FREE_BUFFER);
                 /*
                  * TODO point
@@ -254,6 +265,9 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+
+                printf("%s\n", data);
+                strcpy(sharedArea->pool[token].req, data);
         }
 
         /* -------------------------------------------------------------------- */
@@ -270,6 +284,7 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+                fifoIn(PENDING_REQUEST, token);
         }
 
         /* -------------------------------------------------------------------- */
@@ -287,6 +302,8 @@ namespace sos
                  * Replace with your code,
                  * avoiding race conditions and busy waiting
                  */
+
+                mutex_lock(&sharedArea->pool[token].accessBuffer);
         }
 
         /* -------------------------------------------------------------------- */
@@ -304,6 +321,7 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+                resp = &sharedArea->pool[token].resp;
         }
 
         /* -------------------------------------------------------------------- */
@@ -320,6 +338,8 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+
+                fifoIn(FREE_BUFFER, token);
         }
 
         /* -------------------------------------------------------------------- */
@@ -335,6 +355,7 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+                return fifoOut(PENDING_REQUEST);
         }
 
         /* -------------------------------------------------------------------- */
@@ -352,6 +373,8 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+
+                strcpy(data,sharedArea->pool[token].req);
         }
 
         /* -------------------------------------------------------------------- */
@@ -369,6 +392,7 @@ namespace sos
                  * TODO point
                  * Replace with your code,
                  */
+                 sharedArea->pool[token].resp = *resp;
         }
 
         /* -------------------------------------------------------------------- */
@@ -386,6 +410,7 @@ namespace sos
                  * Replace with your code,
                  * avoiding race conditions and busy waiting
                  */
+                mutex_unlock(&sharedArea->pool[token].accessBuffer);
         }
 
         /* -------------------------------------------------------------------- */
