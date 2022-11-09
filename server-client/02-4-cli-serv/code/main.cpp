@@ -30,7 +30,7 @@
 #include  "dbc.h"
 
 
-#define NBUFFERS 5
+//#define NBUFFERS 5
 
 #define TRUE 1
 #define FALSE 0
@@ -299,10 +299,11 @@ int main(int argc, char *argv[])
      * This can be done sending to every one of them an empty request string.
      */
 
-    for(uint32_t i = 0; i < nclients; i++) {
+    for(uint32_t i = 0; i < nservers; i++) {
         uint32_t token = sos::getFreeBuffer();
         sos::putRequestData(token, "\0");
         sos::submitRequest(token);
+        sos::releaseBuffer(token);
     }
 
     for(uint32_t i = 0; i < nservers; i++) {
