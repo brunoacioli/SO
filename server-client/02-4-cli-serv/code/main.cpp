@@ -64,16 +64,14 @@ void processRequest(uint32_t id)
 #ifdef __DEBUG__
 fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
 #endif
-    //mutex_lock(&accessServer);
     char req[MAX_STRING_LEN+1];
     req[MAX_STRING_LEN] = '\0';
     uint32_t token = sos::getPendingRequest();
     sos::getRequestData(token, req);
-    /*printf("REQ: %s\n", req);
     if(req[0] == '\0') {
-        printf("Server %i finished\n",id);
+        printf("Server %i finished\n", id);
         thread_exit(NULL);
-    }*/
+    }
     sos::Response resp;
     for (uint32_t i = 0; req[i] != '\0'; i++)
     {
@@ -282,9 +280,6 @@ int main(int argc, char *argv[])
         printf("Client %d finished\n", i);
     }
 
-    /*for(uint32_t i = 0; i < nservers; i++) {
-        thread_join(server_thread[i], NULL);
-    }*/
 
     /* waiting for client to conclude */
 
@@ -303,11 +298,17 @@ int main(int argc, char *argv[])
      * This can be done sending to every one of them an empty request string.
      */
 
-    /*for(uint32_t i = 0; i < nclients; i++) {
+    for(uint32_t i = 0; i < nclients; i++) {
         uint32_t token = sos::getFreeBuffer();
         sos::putRequestData(token, "\0");
         sos::submitRequest(token);
-    }*/
+    }
+
+    for(uint32_t i = 0; i < nservers; i++) {
+        //printf("for server thread join\n");
+        thread_join(server_thread[i], NULL);
+        printf("Server %d acabou\n", i);
+    }
 
     /* quitting */
     return EXIT_SUCCESS;

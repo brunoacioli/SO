@@ -48,6 +48,8 @@ namespace sos
                 char req[MAX_STRING_LEN + 1];
                 Response resp;
                 pthread_mutex_t accessBuffer;
+                pthread_cond_t doneRep;
+                int done = 0;
         };
 
         /** \brief the fifo data type to store indexes of buffers */
@@ -106,8 +108,8 @@ namespace sos
                  * Allocate the shared memory
                  */
 
-                //sharedArea = (SharedArea*)malloc(sizeof(SharedArea));
-                sharedArea = new SharedArea;
+                sharedArea = (SharedArea*)malloc(sizeof(SharedArea));
+                //sharedArea = new SharedArea;
                 /* init fifo 0 (free buffers) */
                         
 
@@ -142,6 +144,7 @@ namespace sos
 
                 for(int i = 0; i < NBUFFERS; i++) {
                         mutex_init(&sharedArea->pool[i].accessBuffer, NULL);
+                        cond_init(&sharedArea->pool[i].doneRep, NULL);
                 }
 
         }
@@ -297,13 +300,18 @@ namespace sos
 
                 require(token < NBUFFERS, "token is not valid");
 
+                mutex_lock(&sharedArea->pool[token].accessBuffer);
                 /*
                  * TODO point
                  * Replace with your code,
                  * avoiding race conditions and busy waiting
                  */
-
-                mutex_lock(&sharedArea->pool[token].accessBuffer);
+                while (sharedArea->pool[token].done != 1)
+                {
+                        cond_wait(&sharedArea->pool[token].doneRep, &sharedArea->pool[token].accessBuffer);
+                }
+                mutex_unlock(&sharedArea->pool[token].accessBuffer);
+                
         }
 
         /* -------------------------------------------------------------------- */
@@ -340,6 +348,7 @@ namespace sos
                  */
 
                 fifoIn(FREE_BUFFER, token);
+                sharedArea->pool[token].done = 0;
         }
 
         /* -------------------------------------------------------------------- */
@@ -404,12 +413,15 @@ namespace sos
 #endif
 
                 require(token < NBUFFERS, "token is not valid");
-
+                
+                mutex_lock(&sharedArea->pool[token].accessBuffer);
                 /*
                  * TODO point
                  * Replace with your code,
                  * avoiding race conditions and busy waiting
                  */
+                sharedArea->pool[token].done = 1;
+                cond_broadcast(&sharedArea->pool[token].doneRep);
                 mutex_unlock(&sharedArea->pool[token].accessBuffer);
         }
 
