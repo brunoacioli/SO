@@ -80,8 +80,7 @@ fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
         if (isalpha(req[i])) resp.noLetters++;
     }
     sos::putResponseData(token, &resp);
-    sos::notifyClient(token);
-    //mutex_unlock(&accessServer);    
+    sos::notifyClient(token);  
 }
 
 /* ******************************************************* */
@@ -108,6 +107,8 @@ fprintf(stderr, "%s(id: %u)\n", __FUNCTION__, id);
     {
         processRequest(id);
     }
+    printf("Tchau while\n");
+    
 }
 
 void *thread_server(void *arg) {
@@ -115,7 +116,7 @@ void *thread_server(void *arg) {
     uint32_t id = *(uint32_t*)arg;
     printf("Server %d started\n", id);
     server(id);
-
+    printf("Tchau Server\n");
     return NULL;
 }
 
@@ -305,7 +306,6 @@ int main(int argc, char *argv[])
     }
 
     for(uint32_t i = 0; i < nservers; i++) {
-        //printf("for server thread join\n");
         thread_join(server_thread[i], NULL);
         printf("Server %d acabou\n", i);
     }

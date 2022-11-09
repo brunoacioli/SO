@@ -184,7 +184,7 @@ namespace sos
 
                 require(idx == FREE_BUFFER or idx == PENDING_REQUEST, "idx is not valid");
                 require(token < NBUFFERS, "token is not valid");
-
+                printf("count %d up: %d\n",idx,sharedArea->fifo[idx].cnt);
                 while (sharedArea->fifo[idx].cnt == NBUFFERS) {
                         cond_wait(&sharedArea->fifo[idx].notFull, &sharedArea->fifo[idx].accessCR);
                 }
@@ -192,6 +192,8 @@ namespace sos
                 sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ii] = token;
                 sharedArea->fifo[idx].ii = (sharedArea->fifo[idx].ii + 1) % NBUFFERS;
                 sharedArea->fifo[idx].cnt++;
+                
+
 
                 cond_broadcast(&sharedArea->fifo[idx].notEmpty);
                 mutex_unlock(&sharedArea->fifo[idx].accessCR);
@@ -216,7 +218,7 @@ namespace sos
                 mutex_lock(&sharedArea->fifo[idx].accessCR);
 
                 require(idx == FREE_BUFFER or idx == PENDING_REQUEST, "idx is not valid");
-                
+                printf("count %d: down %d\n",idx,sharedArea->fifo[idx].cnt);
                 while (sharedArea->fifo[idx].cnt == 0)
                 {
                         cond_wait(&sharedArea->fifo[idx].notEmpty, &sharedArea->fifo[idx].accessCR);
@@ -226,6 +228,7 @@ namespace sos
                 sharedArea->fifo[idx].tokens[sharedArea->fifo[idx].ri] = NBUFFERS;
                 sharedArea->fifo[idx].ri = (sharedArea->fifo[idx].ri + 1) % NBUFFERS;
                 sharedArea->fifo[idx].cnt--;
+                
 
                 cond_broadcast(&sharedArea->fifo[idx].notFull);
                 mutex_unlock(&sharedArea->fifo[idx].accessCR);
@@ -341,14 +344,16 @@ namespace sos
 #endif
 
                 require(token < NBUFFERS, "token is not valid");
-
                 /*
                  * TODO point
                  * Replace with your code,
                  */
 
-                fifoIn(FREE_BUFFER, token);
+                mutex_lock(&sharedArea->pool[token].accessBuffer);
                 sharedArea->pool[token].done = 0;
+                mutex_unlock(&sharedArea->pool[token].accessBuffer);
+                fifoIn(FREE_BUFFER, token);
+                
         }
 
         /* -------------------------------------------------------------------- */
